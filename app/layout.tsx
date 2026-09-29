@@ -19,7 +19,11 @@ export const metadata: Metadata = {
     "Personal Linear cockpit. Your issues, local overlays, keyboard triage.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
