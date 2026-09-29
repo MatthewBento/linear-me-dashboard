@@ -1,0 +1,10 @@
+{
+  "workspaces": [
+    {
+      "id": "second-workspace",
+      "name": "Second workspace",
+      "apiKey": "lin_api_REPLACE_ME",
+      "userIdOverride": ""
+    }
+  ]
+}
