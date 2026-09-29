@@ -335,7 +335,10 @@ function LinearWriteSection({
       });
       const data = (await res.json()) as LinearWriteResult;
       if (!res.ok || !data.ok) {
-        if (write.kind === "update-state") onReplaceIssue(previous);
+        if (write.kind === "update-state") {
+          onReplaceIssue(previous);
+          setStateId(previous.state.id);
+        }
         setError(data.error ?? "Linear write failed.");
         return;
       }
@@ -346,7 +349,10 @@ function LinearWriteSection({
       onSuccess();
       toast.success(successCopy(write.kind));
     } catch {
-      if (write.kind === "update-state") onReplaceIssue(previous);
+      if (write.kind === "update-state") {
+        onReplaceIssue(previous);
+        setStateId(previous.state.id);
+      }
       setError("Could not reach the local API.");
     } finally {
       setBusy(false);
