@@ -11,7 +11,7 @@ import {
 const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "j / k", action: "Move selection down / up" },
   { keys: "Enter", action: "Open selected issue in Linear" },
-  { keys: "o", action: "Open issue drawer (scratch, glue, tags)" },
+  { keys: "o", action: "Open issue drawer (local notes and Linear writes)" },
   { keys: "f", action: "Add / remove selected from focus queue" },
   { keys: "s", action: "Snooze selected until tomorrow" },
   { keys: "x", action: "Clear snooze on selected" },
@@ -39,7 +39,8 @@ export function KeyboardHelp({
           <DialogTitle>Keyboard triage</DialogTitle>
           <DialogDescription>
             Designed for a fast personal pass over your Linear queue. Linear remains
-            the source of truth. Enter always deep-links there.
+            the source of truth. Enter deep-links there. Confirmed drawer actions
+            write status, comments, and attachments through the server.
           </DialogDescription>
         </DialogHeader>
         <ul className="space-y-2 text-sm">

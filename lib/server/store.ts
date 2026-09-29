@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   EMPTY_OVERLAYS,
   type BoardCache,
+  type LinearIssue,
   type OverlayStore,
   type WorkspacePublic,
   type WorkspaceSettings,
@@ -29,7 +30,7 @@ type GlobalState = {
   activeWorkspaceId: string | null;
 };
 
-function safeId(id: string): string {
+export function safeWorkspaceId(id: string): string {
   return id.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
@@ -110,18 +111,37 @@ export async function getWorkspaceById(
 }
 
 export async function readCache(workspaceId: string): Promise<BoardCache | null> {
-  const file = path.join(DATA_DIR, "cache", `${safeId(workspaceId)}.json`);
-  const data = await readJson<BoardCache | null>(file, null);
+  const file = path.join(DATA_DIR, "cache", `${safeWorkspaceId(workspaceId)}.json`);
+  const data = await readJson<
+    (Omit<BoardCache, "workflowStatesByTeamId"> & {
+      workflowStatesByTeamId?: BoardCache["workflowStatesByTeamId"];
+    }) | null
+  >(file, null);
   if (!data?.viewer || !Array.isArray(data.issues)) return null;
-  return data;
+  const states = data.workflowStatesByTeamId;
+  return {
+    ...data,
+    workflowStatesByTeamId:
+      states && typeof states === "object" && !Array.isArray(states) ? states : {},
+  };
+}
+
+export async function patchCachedIssue(workspaceId: string, issue: LinearIssue) {
+  const cache = await readCache(workspaceId);
+  if (!cache) return;
+  const index = cache.issues.findIndex((item) => item.id === issue.id);
+  if (index < 0) return;
+  const issues = cache.issues.slice();
+  issues[index] = issue;
+  await writeCache(workspaceId, { ...cache, issues });
 }
 
 export async function writeCache(workspaceId: string, cache: BoardCache) {
-  await writeJson(path.join(DATA_DIR, "cache", `${safeId(workspaceId)}.json`), cache);
+  await writeJson(path.join(DATA_DIR, "cache", `${safeWorkspaceId(workspaceId)}.json`), cache);
 }
 
 export async function readOverlays(workspaceId: string): Promise<OverlayStore> {
-  const file = path.join(DATA_DIR, "overlays", `${safeId(workspaceId)}.json`);
+  const file = path.join(DATA_DIR, "overlays", `${safeWorkspaceId(workspaceId)}.json`);
   const data = await readJson<OverlayStore>(file, EMPTY_OVERLAYS);
   return {
     issues: data.issues ?? {},
@@ -136,7 +156,7 @@ export async function readOverlays(workspaceId: string): Promise<OverlayStore> {
 
 export async function writeOverlays(workspaceId: string, overlays: OverlayStore) {
   await writeJson(
-    path.join(DATA_DIR, "overlays", `${safeId(workspaceId)}.json`),
+    path.join(DATA_DIR, "overlays", `${safeWorkspaceId(workspaceId)}.json`),
     overlays,
   );
 }

@@ -11,33 +11,7 @@ import type {
 } from "@/lib/types";
 import { linearGraphql } from "./client";
 
-const VIEWER_AND_ISSUES = /* GraphQL */ `
-  query MeIssues($after: String, $assigneeId: ID) {
-    viewer {
-      id
-      name
-      displayName
-      email
-      organization {
-        id
-        name
-        urlKey
-      }
-    }
-    issues(
-      first: 100
-      after: $after
-      filter: {
-        assignee: {
-          id: { eq: $assigneeId }
-        }
-      }
-    ) {
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      nodes {
+export const ISSUE_NODE_FIELDS = `
         id
         identifier
         title
@@ -79,13 +53,45 @@ const VIEWER_AND_ISSUES = /* GraphQL */ `
             color
           }
         }
-        blockedBy {
+        inverseRelations {
           nodes {
-            id
-            identifier
-            title
+            type
+            issue {
+              id
+              identifier
+              title
+            }
           }
+        }`;
+
+const VIEWER_AND_ISSUES = /* GraphQL */ `
+  query MeIssues($after: String, $assigneeId: ID) {
+    viewer {
+      id
+      name
+      displayName
+      email
+      organization {
+        id
+        name
+        urlKey
+      }
+    }
+    issues(
+      first: 100
+      after: $after
+      filter: {
+        assignee: {
+          id: { eq: $assigneeId }
         }
+      }
+    ) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+${ISSUE_NODE_FIELDS}
       }
     }
   }
@@ -114,60 +120,13 @@ const VIEWER_ISSUES_IS_ME = /* GraphQL */ `
         endCursor
       }
       nodes {
-        id
-        identifier
-        title
-        url
-        priority
-        priorityLabel
-        dueDate
-        estimate
-        updatedAt
-        createdAt
-        completedAt
-        state {
-          id
-          name
-          type
-          color
-        }
-        team {
-          id
-          name
-          key
-        }
-        project {
-          id
-          name
-        }
-        cycle {
-          id
-          name
-          number
-          startsAt
-          endsAt
-          completedAt
-        }
-        labels {
-          nodes {
-            id
-            name
-            color
-          }
-        }
-        blockedBy {
-          nodes {
-            id
-            identifier
-            title
-          }
-        }
+${ISSUE_NODE_FIELDS}
       }
     }
   }
 `;
 
-type GqlIssueNode = {
+export type GqlIssueNode = {
   id: string;
   identifier: string;
   title: string;
@@ -184,7 +143,12 @@ type GqlIssueNode = {
   project: LinearProject | null;
   cycle: LinearCycle | null;
   labels: { nodes: LinearLabel[] };
-  blockedBy: { nodes: { id: string; identifier: string; title: string }[] };
+  inverseRelations?: {
+    nodes: {
+      type: string;
+      issue: { id: string; identifier: string; title: string } | null;
+    }[];
+  };
 };
 
 type GqlPage = {
@@ -195,7 +159,7 @@ type GqlPage = {
   };
 };
 
-function mapIssue(node: GqlIssueNode): LinearIssue {
+export function mapIssue(node: GqlIssueNode): LinearIssue {
   return {
     id: node.id,
     identifier: node.identifier,
@@ -213,8 +177,23 @@ function mapIssue(node: GqlIssueNode): LinearIssue {
     project: node.project,
     cycle: node.cycle,
     labels: node.labels?.nodes ?? [],
-    blockedBy: node.blockedBy?.nodes ?? [],
+    blockedBy: blockedByFromInverse(node),
   };
+}
+
+export function blockedByFromInverse(
+  node: Pick<GqlIssueNode, "inverseRelations">,
+): LinearIssue["blockedBy"] {
+  const out: LinearIssue["blockedBy"] = [];
+  for (const edge of node.inverseRelations?.nodes ?? []) {
+    if (edge.type !== "blocks" || !edge.issue) continue;
+    out.push({
+      id: edge.issue.id,
+      identifier: edge.issue.identifier,
+      title: edge.issue.title,
+    });
+  }
+  return out;
 }
 
 function uniqById<T extends { id: string }>(items: T[]): T[] {
@@ -228,6 +207,24 @@ function uniqById<T extends { id: string }>(items: T[]): T[] {
       : a.id.localeCompare(b.id)),
   );
 }
+
+const TEAM_WORKFLOW_STATES = /* GraphQL */ `
+  query TeamWorkflowStates($ids: [ID!]!) {
+    teams(filter: { id: { in: $ids } }) {
+      nodes {
+        id
+        states {
+          nodes {
+            id
+            name
+            type
+            color
+          }
+        }
+      }
+    }
+  }
+`;
 
 function buildFacets(issues: LinearIssue[]): BoardFacets {
   return {
@@ -272,10 +269,39 @@ export async function syncMyIssues(
     throw new Error("Could not resolve Linear viewer.");
   }
 
+  const workflowStatesByTeamId = await loadWorkflowStates(apiKey, issues);
+
   return {
     syncedAt: new Date().toISOString(),
     viewer,
     issues,
     facets: buildFacets(issues),
+    workflowStatesByTeamId,
   };
+}
+
+async function loadWorkflowStates(
+  apiKey: string,
+  issues: LinearIssue[],
+): Promise<Record<string, LinearState[]>> {
+  const teamIds = [
+    ...new Set(
+      issues
+        .map((issue) => issue.team?.id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (teamIds.length === 0) return {};
+  try {
+    const data = await linearGraphql<{
+      teams: { nodes: { id: string; states: { nodes: LinearState[] } }[] };
+    }>(apiKey, TEAM_WORKFLOW_STATES, { ids: teamIds });
+    const map: Record<string, LinearState[]> = {};
+    for (const team of data.teams?.nodes ?? []) {
+      map[team.id] = team.states?.nodes ?? [];
+    }
+    return map;
+  } catch {
+    return {};
+  }
 }

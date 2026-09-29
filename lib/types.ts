@@ -101,6 +101,25 @@ export type BoardCache = {
   viewer: LinearViewer;
   issues: LinearIssue[];
   facets: BoardFacets;
+  workflowStatesByTeamId: Record<string, LinearState[]>;
+};
+
+export type LinearWrite =
+  | { kind: "update-state"; issueId: string; stateId: string }
+  | { kind: "create-comment"; issueId: string; body: string }
+  | { kind: "link-attachment"; issueId: string; url: string; title?: string };
+
+export type LinearWriteResult = {
+  ok: boolean;
+  error: string | null;
+  issue?: LinearIssue;
+};
+
+export type LinearChangeNotice = {
+  updatedAt: string;
+  kinds: string[];
+  issueIds: string[];
+  deliveryCount: number;
 };
 
 /** Local overlays keyed by Linear issue id. Linear remains source of truth for status. */
@@ -124,6 +143,9 @@ export type BoardPayload = {
   issues: LinearIssue[];
   facets: BoardFacets;
   overlays: OverlayStore;
+  workflowStatesByTeamId: Record<string, LinearState[]>;
+  changeNotice: LinearChangeNotice | null;
+  webhookConfigured: boolean;
 };
 
 export type SortKey = "priority" | "updated" | "due";
