@@ -133,6 +133,15 @@ const webhookLib = readFileSync(path.join(root, "lib/linear/webhook.ts"), "utf8"
 if (!webhookLib.includes("timingSafeEqual")) fail("webhook HMAC must use timingSafeEqual");
 ok("webhook route reads the raw body");
 
+const queriesSrc = readFileSync(path.join(root, "lib/linear/queries.ts"), "utf8");
+if (queriesSrc.includes("blockedBy {")) {
+  fail("Linear issue selection must not query Issue.blockedBy");
+}
+if (!queriesSrc.includes("inverseRelations")) {
+  fail("Linear issue selection must query inverseRelations for blockers");
+}
+ok("issue GraphQL uses inverseRelations, not Issue.blockedBy");
+
 function sourceFiles(dir: string): string[] {
   return walk(dir).filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"));
 }

@@ -1,6 +1,6 @@
 ---
 name: verify-linear-me
-description: Verify Linear Me (Next.js personal Linear cockpit). Primary surface is the web UI on port 43147. Secondary surface is /api/health, /api/board, /api/overlays. Use when checking this app, before merge, or when asked to verify Linear Me.
+description: Verify Linear Me (Next.js personal Linear cockpit). Primary surface is the web UI on port 43147. Secondary surface is /api/health, /api/board, /api/overlays, /api/changes, /api/linear/write, /api/webhooks/linear. Use when checking this app, before merge, or when asked to verify Linear Me.
 ---
 
 # Verify Linear Me
@@ -51,7 +51,7 @@ Store under `/tmp/cursor/linear-me-verify/<utc-stamp>/`. Keep `health.json`, `bo
 
 ## Cleanup
 
-Stop the `npm run dev` you launched. Leave `data/cache` and `data/overlays` unless the run created `verify-fixture` files. Delete those fixture ids only. Do not delete `/tmp/cursor/linear-me-verify/`.
+Stop the `npm run dev` you launched. Leave `data/cache`, `data/overlays`, and `data/notices` unless the run created `verify-fixture` files. Delete those fixture ids only. Do not delete `/tmp/cursor/linear-me-verify/`.
 
 ## Helpers
 

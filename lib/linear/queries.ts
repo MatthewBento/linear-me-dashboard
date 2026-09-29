@@ -53,11 +53,14 @@ export const ISSUE_NODE_FIELDS = `
             color
           }
         }
-        blockedBy {
+        inverseRelations {
           nodes {
-            id
-            identifier
-            title
+            type
+            issue {
+              id
+              identifier
+              title
+            }
           }
         }`;
 
@@ -140,7 +143,12 @@ export type GqlIssueNode = {
   project: LinearProject | null;
   cycle: LinearCycle | null;
   labels: { nodes: LinearLabel[] };
-  blockedBy: { nodes: { id: string; identifier: string; title: string }[] };
+  inverseRelations?: {
+    nodes: {
+      type: string;
+      issue: { id: string; identifier: string; title: string } | null;
+    }[];
+  };
 };
 
 type GqlPage = {
@@ -169,8 +177,23 @@ export function mapIssue(node: GqlIssueNode): LinearIssue {
     project: node.project,
     cycle: node.cycle,
     labels: node.labels?.nodes ?? [],
-    blockedBy: node.blockedBy?.nodes ?? [],
+    blockedBy: blockedByFromInverse(node),
   };
+}
+
+export function blockedByFromInverse(
+  node: Pick<GqlIssueNode, "inverseRelations">,
+): LinearIssue["blockedBy"] {
+  const out: LinearIssue["blockedBy"] = [];
+  for (const edge of node.inverseRelations?.nodes ?? []) {
+    if (edge.type !== "blocks" || !edge.issue) continue;
+    out.push({
+      id: edge.issue.id,
+      identifier: edge.issue.identifier,
+      title: edge.issue.title,
+    });
+  }
+  return out;
 }
 
 function uniqById<T extends { id: string }>(items: T[]): T[] {
