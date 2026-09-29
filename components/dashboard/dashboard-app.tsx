@@ -46,6 +46,7 @@ import {
   isInProgressState,
   type BoardPayload,
   type IssueOverlay,
+  type LinearChangeNotice,
   type LinearIssue,
   type OverlayStore,
   type SortDir,
@@ -129,6 +130,51 @@ export function DashboardApp() {
     // Network bootstrap. setState lives in the fetch finally, not here.
     void load({ refresh: true });
   }, [load]);
+
+  const workspaceId = payload?.workspace?.id ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      if (document.visibilityState !== "visible") return;
+      const params = new URLSearchParams();
+      if (workspaceId) params.set("workspace", workspaceId);
+      try {
+        const query = params.toString();
+        const res = await fetch(query ? `/api/changes?${query}` : "/api/changes", {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          notice: LinearChangeNotice | null;
+          webhookConfigured: boolean;
+        };
+        if (cancelled) return;
+        setPayload((prev) =>
+          prev
+            ? {
+                ...prev,
+                changeNotice: data.notice,
+                webhookConfigured: data.webhookConfigured,
+              }
+            : prev,
+        );
+      } catch {
+        return;
+      }
+    };
+    const id = window.setInterval(() => {
+      void tick();
+    }, 20_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [workspaceId]);
 
   const persist = useCallback(
     async (body: {
@@ -477,6 +523,20 @@ export function DashboardApp() {
       </header>
 
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
+        {payload?.changeNotice &&
+        (!payload.lastSyncedAt ||
+          Date.parse(payload.changeNotice.updatedAt) > Date.parse(payload.lastSyncedAt)) ? (
+          <Banner
+            tone="info"
+            testId="linear-changed-banner"
+            icon={<RefreshCw className="size-4" />}
+          >
+            Linear updated. Refresh to load.
+            {payload.changeNotice.kinds.length > 0
+              ? ` ${payload.changeNotice.kinds.join(", ")}.`
+              : ""}
+          </Banner>
+        ) : null}
         {payload && !payload.configured ? (
           <Banner
             tone="danger"
@@ -621,10 +681,23 @@ export function DashboardApp() {
         issue={drawerIssue}
         overlay={drawerIssue ? overlays.issues[drawerIssue.id] : undefined}
         energyTags={overlays.settings.extraEnergyTags}
+        workflowStatesByTeamId={payload?.workflowStatesByTeamId ?? {}}
+        fallbackStates={payload?.facets.states ?? []}
+        workspaceId={payload?.workspace?.id ?? null}
         onClose={() => setDrawerId(null)}
         onPatch={patchIssue}
         onAddTag={(tag) => {
           void persist({ extraEnergyTag: tag });
+        }}
+        onReplaceIssue={(issue) => {
+          setPayload((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  issues: prev.issues.map((item) => (item.id === issue.id ? issue : item)),
+                }
+              : prev,
+          );
         }}
       />
       <KeyboardHelp open={helpOpen} onOpenChange={setHelpOpen} />
@@ -639,7 +712,7 @@ function Banner({
   testId,
 }: {
   children: React.ReactNode;
-  tone: "warn" | "danger";
+  tone: "warn" | "danger" | "info";
   icon: React.ReactNode;
   testId?: string;
 }) {
@@ -650,7 +723,9 @@ function Banner({
         "flex items-start gap-2 rounded-lg border px-3 py-2 text-sm",
         tone === "danger"
           ? "border-destructive/40 bg-destructive/10 text-destructive"
-          : "border-amber-500/40 bg-amber-500/10 text-amber-200",
+          : tone === "info"
+            ? "border-sky-500/40 bg-sky-500/10 text-sky-100"
+            : "border-amber-500/40 bg-amber-500/10 text-amber-200",
       )}
     >
       <span className="mt-0.5">{icon}</span>

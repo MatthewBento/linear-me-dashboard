@@ -44,6 +44,7 @@ next-env.d.ts
 # local Linear cache + overlays + extra workspace keys
 /data/cache/
 /data/overlays/
+/data/notices/
 /data/global.json
 /data/workspaces.local.json
 

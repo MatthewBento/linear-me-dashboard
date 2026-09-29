@@ -70,7 +70,7 @@ Drive the same state in the DOM.
 
 ## Gotchas
 
-The drawer never writes status back to Linear.
+Overlay fields in this drawer stay local. Status, comments, and attachments that write to Linear are covered in [refresh and write-back](refresh-writeback.md).
 
 Snooze dates compare with UTC today as `YYYY-MM-DD`. The board hides a snoozed issue while Show snoozed is off.
 

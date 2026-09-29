@@ -11,6 +11,7 @@ Start the app with `npm run dev`. The home page renders the dashboard. These not
 - [Morning brief, blockers, and stale radar](morning-brief-blockers-stale.md) covers views 2, 4, and 5, plus waiting-on notes.
 - [WIP banner and estimate versus burn](estimate-burn-wip.md) covers the WIP banner and the estimate versus burn chart.
 - [Offline cache and missing key](offline-cache.md) covers `data/cache`, last sync, the stale and offline banners, and the missing key error.
+- [Refresh and write-back](refresh-writeback.md) covers the change banner, `GET /api/changes`, Linear webhooks, and drawer writes for status, comments, and attachments.
 
 ## Stable hooks
 
@@ -30,5 +31,14 @@ Use these attributes.
 - `data-testid="wip-banner"`
 - `data-testid="issue-drawer"`
 - `data-testid="search"`
+- `data-testid="linear-changed-banner"`
+- `data-testid="linear-state"`
+- `data-testid="linear-state-submit"`
+- `data-testid="linear-comment"`
+- `data-testid="linear-comment-submit"`
+- `data-testid="linear-attachment-url"`
+- `data-testid="linear-attachment-title"`
+- `data-testid="linear-attachment-submit"`
+- `data-testid="linear-write-error"`
 
-`GET /api/health` returns `configured` and `workspaceCount`. `GET /api/board` returns the board, including `overlays`. `PUT /api/overlays` writes local overlay JSON. The API key stays on the server.
+`GET /api/health` returns `configured` and `workspaceCount`. `GET /api/board` returns the board, including `overlays`, `workflowStatesByTeamId`, `changeNotice`, and `webhookConfigured`. `PUT /api/overlays` writes local overlay JSON. `GET /api/changes` returns `{ notice, lastSyncedAt, webhookConfigured }`. `POST /api/linear/write` applies one Linear mutation. `POST /api/webhooks/linear` checks the signing secret. The API key stays on the server.

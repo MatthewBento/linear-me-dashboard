@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { unlink } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { readCache, readOverlays, writeCache, writeOverlays } from "./store";
@@ -74,6 +74,16 @@ test("writeCache then readCache returns the saved board", async (t) => {
       labels: [],
       cycles: [],
     },
+    workflowStatesByTeamId: {
+      "team-1": [
+        {
+          id: "state-1",
+          name: "In Progress",
+          type: "started",
+          color: "#f2c94c",
+        },
+      ],
+    },
   };
 
   await writeCache(workspaceId, board);
@@ -94,7 +104,39 @@ test("writeCache then readCache returns the saved board", async (t) => {
   assert.equal(read.issues[0].project?.name, "App");
   assert.equal(read.facets.projects[0].name, "App");
   assert.deepEqual(read.facets.states, []);
+  assert.deepEqual(read.workflowStatesByTeamId["team-1"][0].name, "In Progress");
   assert.deepEqual(read, board);
+});
+
+test("readCache defaults workflowStatesByTeamId when the file omits it", async (t) => {
+  const id = "verify-fixture-old-cache";
+  const file = path.join(process.cwd(), "data", "cache", `${id}.json`);
+  t.after(() =>
+    unlink(file).catch((err: unknown) => {
+      if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") return;
+      throw err;
+    }),
+  );
+
+  const legacy = {
+    syncedAt: "2026-09-29T15:04:00.000Z",
+    viewer: {
+      id: "viewer-verify",
+      name: "Verify User",
+      displayName: "Verify",
+      email: "verify@example.com",
+      organization: { id: "org-verify", name: "Verify Org", urlKey: "verify" },
+    },
+    issues: [],
+    facets: { states: [], projects: [], teams: [], labels: [], cycles: [] },
+  };
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(legacy));
+  const read = await readCache(id);
+  assert.ok(read);
+  assert.deepEqual(read.workflowStatesByTeamId, {});
+  assert.equal(read.syncedAt, "2026-09-29T15:04:00.000Z");
+  assert.equal(read.viewer.id, "viewer-verify");
 });
 
 test("writeOverlays then readOverlays returns the saved fields", async (t) => {

@@ -1,5 +1,6 @@
 import { LinearApiError, LinearConfigError } from "@/lib/linear/client";
 import { syncMyIssues } from "@/lib/linear/queries";
+import { isWebhookConfigured, readNotice } from "@/lib/server/notices";
 import {
   getWorkspaceById,
   loadWorkspaces,
@@ -36,6 +37,7 @@ export async function buildBoard(opts: {
 }): Promise<BoardPayload> {
   const workspaces = await loadWorkspaces();
   const publicList = workspaces.map(toPublic);
+  const webhookConfigured = isWebhookConfigured();
   const workspace = opts.workspaceId
     ? await getWorkspaceById(opts.workspaceId)
     : await resolveActiveWorkspace();
@@ -56,8 +58,13 @@ export async function buildBoard(opts: {
       issues: [],
       facets: EMPTY_FACETS,
       overlays: EMPTY_OVERLAYS,
+      workflowStatesByTeamId: {},
+      changeNotice: null,
+      webhookConfigured,
     };
   }
+
+  const changeNotice = await readNotice(workspace.id);
 
   await setActiveWorkspace(workspace.id);
   const overlays = await readOverlays(workspace.id);
@@ -102,6 +109,9 @@ export async function buildBoard(opts: {
       issues: [],
       facets: EMPTY_FACETS,
       overlays,
+      workflowStatesByTeamId: {},
+      changeNotice,
+      webhookConfigured,
     };
   }
 
@@ -121,6 +131,9 @@ export async function buildBoard(opts: {
     issues: payloadCache.issues,
     facets: payloadCache.facets,
     overlays,
+    workflowStatesByTeamId: payloadCache.workflowStatesByTeamId ?? {},
+    changeNotice,
+    webhookConfigured,
   };
 }
 

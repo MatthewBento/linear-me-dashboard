@@ -8,7 +8,7 @@
     "start": "next start --port 43147",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test lib/board-logic.test.ts lib/server/store.test.ts",
+    "test": "tsx --test lib/board-logic.test.ts lib/server/store.test.ts lib/linear/webhook.test.ts lib/linear/mutations.test.ts lib/server/notices.test.ts",
     "verify": "tsx scripts/verify.ts"
   },
   "dependencies": {
